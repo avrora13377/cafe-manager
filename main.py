@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox, simpledialog
 from datetime import datetime, date
 
 from database import DatabaseManager, OrderManager
+from sound import order_placed, status_changed, item_added, error, cancel as sound_cancel
 
 
 class MenuTab(ttk.Frame):
@@ -474,6 +475,7 @@ class OrdersTab(ttk.Frame):
                 if table_num <= 0:
                     raise ValueError
                 order_id = self.db.create_order(table_num)
+                order_placed()
                 messagebox.showinfo(
                     "Успешно", f"Создан заказ №{order_id} для стола {table_num}"
                 )
@@ -485,6 +487,7 @@ class OrdersTab(ttk.Frame):
                         self.order_tree.focus(child)
                         break
             except ValueError:
+                error()
                 messagebox.showerror("Ошибка", "Введите корректный номер стола")
 
     def change_status(self):
@@ -508,6 +511,7 @@ class OrdersTab(ttk.Frame):
         if dialog.result:
             success, msg = self.om.change_status(order_id, dialog.result)
             if success:
+                status_changed()
                 self.refresh_orders()
                 self.on_order_select()
             messagebox.showinfo("Результат", msg)
@@ -528,6 +532,7 @@ class OrdersTab(ttk.Frame):
             return
         if messagebox.askyesno("Подтверждение", f"Отменить заказ №{order_id}?"):
             self.db.cancel_order(order_id)
+            sound_cancel()
             messagebox.showinfo("Успешно", f"Заказ №{order_id} отменен")
             self.refresh_orders()
             self.on_order_select()
@@ -584,6 +589,7 @@ class OrdersTab(ttk.Frame):
                 dialog.result["quantity"],
                 dialog.result["price"],
             )
+            item_added()
             self.refresh_orders()
             self.refresh_items()
             messagebox.showinfo("Результат", msg)
@@ -599,6 +605,7 @@ class OrdersTab(ttk.Frame):
         item_id = int(self.item_tree.item(sel[0])["values"][0])
         if messagebox.askyesno("Подтверждение", "Удалить позицию из заказа?"):
             success, msg = self.om.remove_item_from_order(item_id, order_id)
+            item_added()
             self.refresh_orders()
             self.refresh_items()
             messagebox.showinfo("Результат", msg)
