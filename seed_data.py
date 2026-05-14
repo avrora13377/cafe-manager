@@ -6,19 +6,21 @@ import random
 def seed():
     db = DatabaseManager()
 
+    # Clear existing data so script is idempotent
+    db.conn.executescript("""
+        DELETE FROM order_items;
+        DELETE FROM orders;
+        DELETE FROM dishes;
+        DELETE FROM categories;
+    """)
+    db.conn.commit()
+
     # Categories
     categories = ["Пицца", "Салаты", "Напитки", "Десерты", "Супы"]
     cat_ids = {}
     for name in categories:
-        try:
-            cat_id = db.add_category(name)
-            cat_ids[name] = cat_id
-        except Exception:
-            cats = db.get_categories()
-            for c in cats:
-                if c["name"] == name:
-                    cat_ids[name] = c["id"]
-                    break
+        cat_id = db.add_category(name)
+        cat_ids[name] = cat_id
 
     # Dishes
     dishes_data = [
@@ -41,15 +43,8 @@ def seed():
     ]
     dish_ids = {}
     for name, price, cat_name in dishes_data:
-        try:
-            d_id = db.add_dish(name, price, cat_ids[cat_name])
-            dish_ids[name] = d_id
-        except Exception:
-            dishes = db.get_dishes()
-            for d in dishes:
-                if d["name"] == name:
-                    dish_ids[name] = d["id"]
-                    break
+        d_id = db.add_dish(name, price, cat_ids[cat_name])
+        dish_ids[name] = d_id
 
     # Orders with items
     today = datetime.now()
@@ -59,8 +54,6 @@ def seed():
         table = random.randint(1, 8)
         created = today - timedelta(hours=random.randint(1, 72))
         status = random.choice(statuses)
-        if status == "Отменен":
-            status = "Отменен"
 
         order_id = db.create_order(table)
 
