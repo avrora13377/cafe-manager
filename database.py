@@ -213,11 +213,11 @@ class DatabaseManager:
     def get_sales_report(self, start_date: str, end_date: str):
         cursor = self.conn.execute(
             """SELECT DATE(created_at) as day,
-                      COUNT(*) as order_count,
-                      SUM(total) as total_sales
+                      COUNT(*) as total_orders,
+                      SUM(CASE WHEN status = 'Оплачен' THEN 1 ELSE 0 END) as paid_orders,
+                      SUM(CASE WHEN status = 'Оплачен' THEN total ELSE 0 END) as revenue
                FROM orders
-               WHERE status = 'Оплачен'
-                 AND DATE(created_at) BETWEEN ? AND ?
+               WHERE DATE(created_at) BETWEEN ? AND ?
                GROUP BY DATE(created_at)
                ORDER BY day""",
             (start_date, end_date),
@@ -239,6 +239,8 @@ class DatabaseManager:
             (start_date, end_date),
         )
         return [dict(row) for row in cursor.fetchall()]
+
+
 
     def close(self):
         self.conn.close()

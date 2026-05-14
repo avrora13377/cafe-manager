@@ -746,16 +746,18 @@ class ReportsTab(ttk.Frame):
         day_frame = ttk.LabelFrame(self, text="Продажи по дням", padding=5)
         day_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        day_columns = ("day", "order_count", "total_sales")
+        day_columns = ("day", "total_orders", "paid_orders", "revenue")
         self.day_tree = ttk.Treeview(
             day_frame, columns=day_columns, show="headings", height=5
         )
         self.day_tree.heading("day", text="Дата")
-        self.day_tree.heading("order_count", text="Кол-во заказов")
-        self.day_tree.heading("total_sales", text="Выручка (₽)")
-        self.day_tree.column("day", width=150, anchor=tk.CENTER)
-        self.day_tree.column("order_count", width=150, anchor=tk.CENTER)
-        self.day_tree.column("total_sales", width=150, anchor=tk.CENTER)
+        self.day_tree.heading("total_orders", text="Всего заказов")
+        self.day_tree.heading("paid_orders", text="Оплачено")
+        self.day_tree.heading("revenue", text="Выручка (₽)")
+        self.day_tree.column("day", width=140, anchor=tk.CENTER)
+        self.day_tree.column("total_orders", width=120, anchor=tk.CENTER)
+        self.day_tree.column("paid_orders", width=100, anchor=tk.CENTER)
+        self.day_tree.column("revenue", width=120, anchor=tk.CENTER)
         self.day_tree.pack(fill=tk.BOTH, expand=True)
 
         # ---- Sales by dish ----
@@ -797,19 +799,22 @@ class ReportsTab(ttk.Frame):
         # Day report
         day_data = self.db.get_sales_report(start, end)
         total_orders = 0
-        total_sales = 0.0
+        total_paid = 0
+        total_revenue = 0.0
         for row in day_data:
             self.day_tree.insert(
                 "",
                 tk.END,
                 values=(
                     row["day"],
-                    row["order_count"],
-                    f"{row['total_sales']:.2f}",
+                    row["total_orders"],
+                    row["paid_orders"],
+                    f"{row['revenue']:.2f}",
                 ),
             )
-            total_orders += row["order_count"]
-            total_sales += row["total_sales"]
+            total_orders += row["total_orders"]
+            total_paid += row["paid_orders"]
+            total_revenue += row["revenue"]
 
         # Dish report
         dish_data = self.db.get_detailed_sales(start, end)
@@ -826,8 +831,9 @@ class ReportsTab(ttk.Frame):
 
         self.summary_label.config(
             text=f"За период с {start} по {end}: "
-            f"всего заказов — {total_orders}, "
-            f"общая выручка — {total_sales:.2f} ₽"
+            f"заказов — {total_orders}, "
+            f"оплачено — {total_paid}, "
+            f"выручка — {total_revenue:.2f} ₽"
         )
 
 

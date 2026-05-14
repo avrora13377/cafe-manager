@@ -48,12 +48,19 @@ def seed():
 
     # Orders with items
     today = datetime.now()
-    statuses = ["Принят", "Готовится", "Готов", "Оплачен", "Отменен"]
+    all_statuses = ["Принят", "Готовится", "Готов", "Оплачен", "Отменен"]
+
+    # Guarantee some paid orders for the report to work
+    forced_statuses = ["Оплачен", "Оплачен", "Оплачен"]
+    random_statuses = random.choices(all_statuses, k=7)
+    order_statuses = forced_statuses + random_statuses
+    random.shuffle(order_statuses)
 
     for i in range(10):
         table = random.randint(1, 8)
-        created = today - timedelta(hours=random.randint(1, 72))
-        status = random.choice(statuses)
+        hours_ago = random.randint(1, 72)
+        created = today - timedelta(hours=hours_ago)
+        status = order_statuses[i]
 
         order_id = db.create_order(table)
 
