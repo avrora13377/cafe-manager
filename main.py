@@ -1,6 +1,8 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import ttk, messagebox, simpledialog, filedialog
 from datetime import datetime, date
+import csv
+import os
 
 from database import DatabaseManager, OrderManager
 from sound import order_placed, status_changed, item_added, error, cancel as sound_cancel
@@ -858,7 +860,12 @@ class MainApplication(tk.Tk):
 
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Файл", menu=file_menu)
-        file_menu.add_command(label="Экспорт данных...", command=self.export_data)
+
+        export_menu = tk.Menu(file_menu, tearoff=0)
+        file_menu.add_cascade(label="Экспорт", menu=export_menu)
+        export_menu.add_command(label="Меню (категории и блюда)", command=self.export_menu)
+        export_menu.add_command(label="Все заказы", command=self.export_orders)
+        export_menu.add_command(label="Отчет за период", command=self.export_report)
         file_menu.add_separator()
         file_menu.add_command(label="Выход", command=self.on_close)
 
@@ -878,11 +885,87 @@ class MainApplication(tk.Tk):
         notebook.add(self.orders_tab, text="Заказы")
         notebook.add(self.reports_tab, text="Отчеты")
 
-    def export_data(self):
-        messagebox.showinfo(
-            "Экспорт",
-            "Функция экспорта данных будет доступна в следующей версии.",
+    def _write_csv(self, path, headers, rows):
+        with open(path, "w", newline="", encoding="utf-8-sig") as f:
+            w = csv.writer(f)
+            w.writerow(headers)
+            w.writerows(rows)
+
+    def export_menu(self):
+        path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+            title="Экспорт меню",
+            initialfile="menu.csv",
         )
+        if not path:
+            return
+        categories = self.db.get_categories()
+        dishes = self.db.get_dishes()
+        rows = []
+        for d in dishes:
+            rows.append([d["id"], d["name"], f"{d['price']:.2f}", d["category_name"]])
+        self._write_csv(
+            path,
+            ["ID", "Название", "Цена (₽)", "Категория"],
+            rows,
+        )
+        messagebox.showinfo("Экспорт", f"Меню сохранено:\n{os.path.basename(path)}")
+
+    def export_orders(self):
+        path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+            title="Экспорт заказов",
+            initialfile="orders.csv",
+        )
+        if not path:
+            return
+        orders = self.db.get_orders()
+        rows = []
+        for o in orders:
+            items = self.db.get_order_items(o["id"])
+            items_str = "; ".join(
+                f"{i['dish_name']} x{i['quantity']}" for i in items
+            )
+            rows.append([
+                o["id"], o["table_number"], o["status"],
+                o["created_at"], f"{o['total']:.2f}", items_str,
+            ])
+        self._write_csv(
+            path,
+            ["№", "Стол", "Статус", "Дата", "Сумма (₽)", "Позиции"],
+            rows,
+        )
+        messagebox.showinfo("Экспорт", f"Заказы сохранены:\n{os.path.basename(path)}")
+
+    def export_report(self):
+        start = self.reports_tab.start_var.get().strip()
+        end = self.reports_tab.end_var.get().strip()
+        try:
+            datetime.strptime(start, "%Y-%m-%d")
+            datetime.strptime(end, "%Y-%m-%d")
+        except ValueError:
+            messagebox.showerror("Ошибка", "Сначала выберите корректный период на вкладке Отчеты")
+            return
+        path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+            title="Экспорт отчета",
+            initialfile=f"report_{start}_{end}.csv",
+        )
+        if not path:
+            return
+        day_data = self.db.get_sales_report(start, end)
+        rows = []
+        for r in day_data:
+            rows.append([r["day"], r["total_orders"], r["paid_orders"], f"{r['revenue']:.2f}"])
+        self._write_csv(
+            path,
+            ["Дата", "Всего заказов", "Оплачено", "Выручка (₽)"],
+            rows,
+        )
+        messagebox.showinfo("Экспорт", f"Отчет сохранен:\n{os.path.basename(path)}")
 
     def show_about(self):
         messagebox.showinfo(
